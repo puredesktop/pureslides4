@@ -1,0 +1,672 @@
+{
+  "id": "slides",
+  "name": "PureSlides",
+  "permissions": [
+    "settings",
+    "filesystem",
+    "render",
+    "agents"
+  ],
+  "entrypoint": {
+    "kind": "dev-url",
+    "url": "http://localhost:5440"
+  },
+  "app": {
+    "acceptedDragKinds": ["video", "image"],
+    "id": "plugin.slides",
+    "slug": "slides",
+    "name": "PureSlides",
+    "navigationLabel": "Slides",
+    "productName": "pure.slides",
+    "kind": "desktop",
+    "description": "Write a deck in HTML and present it — slides that build, a board that IS the markup, and a PDF, image set or video out the other end.",
+    "usePureDesktopAiPanel": true,
+    "openableFileKinds": [
+      "folder"
+    ],
+    "openableNameSuffixes": [
+      ".deck"
+    ],
+    "createEntities": [
+      {
+        "id": "deck-package",
+        "label": "Slide deck",
+        "description": "Create a new HTML slide deck.",
+        "kind": "package",
+        "appSlug": "slides",
+        "defaultName": "Untitled deck",
+        "packageSuffix": ".deck",
+        "packageManifestFile": "manifest.json",
+        "packageContentFile": "index.html",
+        "packageAssetsDir": "assets",
+        "template": "<!DOCTYPE html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <title>Untitled deck</title>\n    <style>\n      html, body { margin: 0; padding: 0; background: #0e0e11; }\n      #deck { font-family: Archivo, system-ui, -apple-system, sans-serif; }\n      [data-slide] { box-sizing: border-box; }\n      [data-step] { transition: opacity 260ms ease, transform 260ms ease; }\n      [data-step].pv-out { opacity: 0; transform: translateY(10px); visibility: hidden; }\n      [data-step].pv-in { opacity: 1; transform: none; visibility: visible; }\n    </style>\n  </head>\n  <body>\n    <div id=\"deck\" data-deck-id=\"deck\" data-width=\"1280\" data-height=\"720\" style=\"width: 1280px; height: 720px; position: relative; overflow: hidden\">\n      <div data-slide data-block=\"starter\" style=\"position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: #ffffff; text-align: center\">\n        <h1 style=\"margin: 0; font-size: 64px; font-weight: 800; letter-spacing: -0.03em; color: #1b1b1e\">Untitled deck</h1>\n        <p style=\"margin: 0; font-size: 22px; color: #6d6f73\">Write slides in HTML. Present them. Export a PDF.</p>\n      </div>\n    </div>\n  </body>\n</html>\n"
+      }
+    ],
+    "agents": {
+      "tools": [
+        {"name": "cancelDrawerRequest", "risk": "destructive", "description": "Cancel the saved pending request by ID. Subsequent commits are refused. Does not undo a completed save.", "inputSchema": {"type": "object", "properties": {"requestId": {"type": "string"}}, "required": ["requestId"]}},
+        {"name": "getDrawerRequest", "risk": "read", "description": "Read the saved request, exact HTML/baseHash, edit scope, assets and design guide.", "requiresApproval": false, "inputSchema": {"type": "object", "properties": {}, "required": []}},
+        {"name": "commitDrawerRequest", "description": "Commit the saved request once. Draft/edit: supply complete html preserving everything outside the saved selection. Describe: supply descriptions only from actual image pixels. Returns persisted status, not layout certification.", "requiresApproval": true, "inputSchema": {"type": "object", "properties": {"requestId": {"type": "string"}, "baseHash": {"type": "string"}, "html": {"type": "string"}, "title": {"type": "string"}, "descriptions": {"type": "array", "items": {"type": "object", "properties": {"name": {"type": "string"}, "description": {"type": "string"}}, "required": ["name", "description"]}}}, "required": ["requestId", "baseHash"]}},
+
+        {
+          "name": "getDeckContext",
+          "risk": "read",
+          "description": "What deck is open, and what the author is aiming at. Returns title, slide count, frame size, `hash` (the content hash of the deck — pass it as baseHash on every edit), `verification` (whether the board's render is verified, being checked, or failed with the overlapping slides named), the brief, the assets with each file's role and description, which pane is up, and `aim` — the scope a request like \"this\" or \"these\" refers to: picked elements, ticked slides, or the slide on screen. Read this before acting on a request that points at something rather than naming it, and read it again after any refusal that says the deck changed.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        {
+          "name": "getSlide",
+          "risk": "read",
+          "description": "The full HTML of one slide, or of the whole deck when no index is given. Also returns `hash`, the base to pass as baseHash on the edit you make from it.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "index": {
+                "type": "number",
+                "description": "Slide number from listSlides; omit for the whole deck."
+              }
+            }
+          }
+        },
+        {
+          "name": "listSlides",
+          "risk": "read",
+          "description": "Every slide in order: index, headline, support line, speaker notes, build steps, hold seconds and any asset it shows — with the deck `hash` to pass as baseHash on the next edit.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        {
+          "name": "listAssets",
+          "risk": "read",
+          "description": "Files in the deck's assets folder, with each one's role and description. A file whose role is 'reference' is a design reference: build the look from it and never place it on a slide.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        {
+          "name": "checkDeck",
+          "risk": "read",
+          "description": "Lint the deck before presenting or exporting: a missing deck root, build steps that skip a number, images, fonts or scripts loaded over the network, document.write calls that would erase the deck — and `layout`, the render's verification state: 'verified' (every slide measured cleanly with fonts loaded), 'checking' (not every slide has been measured in a visible frame with loaded fonts yet), or 'failed' with the slides whose text overlaps. Export refuses anything that is not verified.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        {
+          "name": "createDeck",
+          "description": "Start a new deck package and open it.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "What the deck is called; names the file too."
+              }
+            },
+            "required": [
+              "title"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "setDeck",
+          "risk": "destructive",
+          "description": "Replace the whole deck document, and optionally its frame size or title. Use for a wholesale rewrite; prefer the slide tools for ordinary work. The deck as it was is snapshotted to history first (restoreRevision brings it back); the result reports textRemoved when the rewrite dropped much of the text. Pass baseHash from your read — a stale one is refused.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "html": {
+                "type": "string"
+              },
+              "width": {
+                "type": "number"
+              },
+              "height": {
+                "type": "number"
+              },
+              "title": {
+                "type": "string"
+              },
+              "baseHash": {
+                "type": "string",
+                "description": "The deck hash from your last getDeckContext/getSlide/listSlides read. When it no longer matches, the edit is refused with the current hash — re-read and redo it. Optional for now; always pass it."
+              }
+            },
+            "required": [
+              "html"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "addSlide",
+          "description": "Add a slide. One element carrying data-slide; put the headline in an <h1> and the second line in a <p> so the board can edit them.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "html": {
+                "type": "string"
+              },
+              "atIndex": {
+                "type": "number",
+                "description": "Insert before this slide; omit to append."
+              },
+              "baseHash": {
+                "type": "string",
+                "description": "The deck hash from your last getDeckContext/getSlide/listSlides read. When it no longer matches, the edit is refused with the current hash — re-read and redo it. Optional for now; always pass it."
+              }
+            },
+            "required": [
+              "html"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "updateSlide",
+          "description": "Change a slide's copy, notes, kind, asset or hold time without rewriting its markup.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "index": {
+                "type": "number"
+              },
+              "headline": {
+                "type": "string"
+              },
+              "support": {
+                "type": "string"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Speaker notes — presenter view only, never on the slide."
+              },
+              "block": {
+                "type": "string"
+              },
+              "asset": {
+                "type": "string"
+              },
+              "seconds": {
+                "type": "number",
+                "description": "How long it holds in a timed export."
+              },
+              "baseHash": {
+                "type": "string",
+                "description": "The deck hash from your last getDeckContext/getSlide/listSlides read. When it no longer matches, the edit is refused with the current hash — re-read and redo it. Optional for now; always pass it."
+              }
+            },
+            "required": [
+              "index"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "setSlideHtml",
+          "description": "Replace one slide's markup entirely, leaving every other slide alone.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "index": {
+                "type": "number"
+              },
+              "html": {
+                "type": "string"
+              },
+              "baseHash": {
+                "type": "string",
+                "description": "The deck hash from your last getDeckContext/getSlide/listSlides read. When it no longer matches, the edit is refused with the current hash — re-read and redo it. Optional for now; always pass it."
+              }
+            },
+            "required": [
+              "index",
+              "html"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "moveSlide",
+          "description": "Reorder a slide.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "number"
+              },
+              "to": {
+                "type": "number"
+              },
+              "baseHash": {
+                "type": "string",
+                "description": "The deck hash from your last getDeckContext/getSlide/listSlides read. When it no longer matches, the edit is refused with the current hash — re-read and redo it. Optional for now; always pass it."
+              }
+            },
+            "required": [
+              "from",
+              "to"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "duplicateSlide",
+          "description": "Copy a slide in place.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "index": {
+                "type": "number"
+              },
+              "baseHash": {
+                "type": "string",
+                "description": "The deck hash from your last getDeckContext/getSlide/listSlides read. When it no longer matches, the edit is refused with the current hash — re-read and redo it. Optional for now; always pass it."
+              }
+            },
+            "required": [
+              "index"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "deleteSlide",
+          "risk": "destructive",
+          "description": "Remove a slide. Refused when it is the last one — a deck keeps at least one slide.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "index": {
+                "type": "number"
+              },
+              "baseHash": {
+                "type": "string",
+                "description": "The deck hash from your last getDeckContext/getSlide/listSlides read. When it no longer matches, the edit is refused with the current hash — re-read and redo it. Optional for now; always pass it."
+              }
+            },
+            "required": [
+              "index"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "setElement",
+          "description": "Replace ONE element inside one slide, leaving the rest untouched. getDeckContext reports the elements the author picked, with their paths.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "slideIndex": {
+                "type": "number"
+              },
+              "path": {
+                "type": "string",
+                "description": "Chain of child indexes from the slide, such as \"0.2\"."
+              },
+              "html": {
+                "type": "string"
+              },
+              "baseHash": {
+                "type": "string",
+                "description": "The deck hash from your last getDeckContext/getSlide/listSlides read. When it no longer matches, the edit is refused with the current hash — re-read and redo it. Optional for now; always pass it."
+              }
+            },
+            "required": [
+              "slideIndex",
+              "path",
+              "html"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "setElementText",
+          "description": "Retype ONE element's words, leaving its markup and styling exactly as they are. Use this rather than setElement when only the text changes — it cannot disturb the layout. Refused on an element that holds other elements, since writing text into it would delete them.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "slideIndex": {
+                "type": "number"
+              },
+              "path": {
+                "type": "string",
+                "description": "Chain of child indexes from the slide, such as \"0.2\"."
+              },
+              "text": {
+                "type": "string"
+              },
+              "baseHash": {
+                "type": "string",
+                "description": "The deck hash from your last getDeckContext/getSlide/listSlides read. When it no longer matches, the edit is refused with the current hash — re-read and redo it. Optional for now; always pass it."
+              }
+            },
+            "required": [
+              "slideIndex",
+              "path",
+              "text"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "listBlocks",
+          "risk": "read",
+          "description": "The slide compositions on offer — title, statement, points that build, cards, two-column, full-bleed image, full-bleed video, video in a frame, screenshot, quote, number, before-and-after, sequence, agenda, divider, end card. Each says what it is FOR and how many presses it takes. Reach for these rather than inventing a layout: a deck written from nothing comes out as fifteen headline-and-bullets slides.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        {
+          "name": "addBlock",
+          "description": "Add one of the compositions from listBlocks as a new slide, then edit it like any other. Faster and more varied than writing a layout from scratch. The video blocks (video-full, video) take `asset`: the clip's file name in assets/ (addAsset it first) goes into the block's slot, so the slide plays it when it comes up.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "blockId": {
+                "type": "string",
+                "description": "An id from listBlocks."
+              },
+              "atIndex": {
+                "type": "number",
+                "description": "Insert before this slide; omit to append."
+              },
+              "asset": {
+                "type": "string",
+                "description": "For a video block: the clip's file name inside assets/ (from listAssets or addAsset) — `demo.mp4`, not a path. MP4 (H.264) plays everywhere."
+              },
+              "baseHash": {
+                "type": "string",
+                "description": "The deck hash from your last getDeckContext/getSlide/listSlides read. When it no longer matches, the edit is refused with the current hash — re-read and redo it. Optional for now; always pass it."
+              }
+            },
+            "required": [
+              "blockId"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "deleteElement",
+          "risk": "destructive",
+          "description": "Remove ONE element from a slide — a line, an image, a block the author pointed at. Rewriting it as something empty is not the same: the box, its spacing and its build step stay behind.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "slideIndex": {
+                "type": "number"
+              },
+              "path": {
+                "type": "string"
+              },
+              "baseHash": {
+                "type": "string",
+                "description": "The deck hash from your last getDeckContext/getSlide/listSlides read. When it no longer matches, the edit is refused with the current hash — re-read and redo it. Optional for now; always pass it."
+              }
+            },
+            "required": [
+              "slideIndex",
+              "path"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "setElementStep",
+          "description": "Put an element on a build step, so it arrives on the Nth press. Step 0 clears it — the element is on from the start. This is how a slide becomes progressive.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "slideIndex": {
+                "type": "number"
+              },
+              "path": {
+                "type": "string"
+              },
+              "step": {
+                "type": "number",
+                "description": "1 or more to build it in; 0 to show it from the start."
+              },
+              "baseHash": {
+                "type": "string",
+                "description": "The deck hash from your last getDeckContext/getSlide/listSlides read. When it no longer matches, the edit is refused with the current hash — re-read and redo it. Optional for now; always pass it."
+              }
+            },
+            "required": [
+              "slideIndex",
+              "path",
+              "step"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "addAsset",
+          "description": "Copy a file from the workspace into the deck's assets folder so a slide can reference it by relative path.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "sourcePath": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "reference",
+                  "logo"
+                ],
+                "description": "What the file is for. 'reference' is a design reference the look is built from and never shown."
+              }
+            },
+            "required": [
+              "sourcePath"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "setAssetRole",
+          "description": "Mark what an attached file is for: content, design reference, or logo.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "content",
+                  "reference",
+                  "logo"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "role"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "describeAsset",
+          "description": "Write what an attached file shows, in one plain sentence. Descriptions are what slides get written from.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "description"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "setBrief",
+          "description": "Set the brief the deck is drafted from, and roughly how many slides it should run to.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "brief": {
+                "type": "string"
+              },
+              "slides": {
+                "type": "number"
+              }
+            }
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "draftDeck",
+          "description": "Prepare and save a deck composition request. Returns context and design guide immediately; no model call. Compose the complete deck in this drawer, then commitDrawerRequest and checkDeck.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {}
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "setSelection",
+          "description": "Aim the app: choose the slide on screen, tick a set of slides, pick elements, or switch pane. Use it to SHOW the author what you are talking about before you change it.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "selectedSlide": {
+                "type": "number"
+              },
+              "slideIndexes": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "elementPaths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "view": {
+                "type": "string",
+                "enum": [
+                  "slides",
+                  "assets"
+                ]
+              }
+            }
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "present",
+          "risk": "external",
+          "description": "Open the deck full screen from a slide, as if the author pressed Present.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "fromSlide": {
+                "type": "number"
+              }
+            }
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "saveDeck",
+          "description": "Save the current deck into its app-managed .deck package and return the durable artifact path. Call this after deck edits before completing a mission.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        {
+          "name": "exportDeck",
+          "risk": "external",
+          "description": "Export the deck: 'pdf' (one page per slide, every build revealed — the PDF is the board's render, printed; a video prints as its poster or a panel naming the clip), 'images' (a PNG per slide), 'pptx' (a PowerPoint file: one picture slide per slide, the board's render, speaker notes attached, every video placed as a real clip that plays; opens in PowerPoint, Keynote and Google Slides, text is a picture not type) or 'video' (slides on a clock through the frame renderer). The pipeline measures every slide again first and REFUSES when the layout is not verified: a slide with overlapping text, a check that could not finish (the app hidden, fonts not loaded), or a checkDeck error. A refusal names the slides; fix them and call again. There is no way around the check.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "pdf",
+                  "images",
+                  "video",
+                  "pptx"
+                ]
+              },
+              "notesAppendix": {
+                "type": "boolean",
+                "description": "PDF only: add a speaker-notes appendix."
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "requiresApproval": true
+        },
+        {
+          "name": "stopExport",
+          "risk": "destructive",
+          "description": "Stop a running export after the page or frame in flight.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        {
+          "name": "listRevisions",
+          "risk": "read",
+          "description": "List the deck's revision snapshots, newest first. A snapshot is the deck AS IT WAS before a change: every ask from the board, every setDeck/slide/element tool call, every draft and every restore copies the previous version into the package's history/ folder first (12 kept per deck). Each entry reports file, at, reason (ask / agent / agent-setDeck / draft / manual-edit / restore), scope, byteSize and textChars — compare textChars across entries to see where content went missing. Call this before restoreRevision.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "requiresApproval": false
+        },
+        {
+          "name": "restoreRevision",
+          "risk": "destructive",
+          "description": "Put a revision snapshot back as the open deck — the same restore as the board's Undo and History list. Use it when a rewrite (yours or an earlier one) lost content the user wanted kept: an edit result reports textRemoved when a large share of the visible text vanished. The current deck is snapshotted first (reason \"restore\"), so a restore is itself undoable and never loses the present version. Pass the file name exactly as listRevisions reports it.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "file": {
+                "type": "string",
+                "description": "The snapshot's file name from listRevisions (e.g. 2026-09-02T10-15-30-123Z-ask.html)."
+              }
+            },
+            "required": [
+              "file"
+            ],
+            "additionalProperties": false
+          },
+          "requiresApproval": true
+        }
+      ]
+    }
+  }
+}
