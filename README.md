@@ -1,4 +1,16 @@
+<p><img src="docs/assets/app-icon.svg" width="88" height="88" alt="pureslides4 icon"></p>
+
 # PureSlides4
+
+## App documentation
+
+Author HTML slide decks, present them, and export the result.
+
+1. Create or open a `.deck` and edit the slide markup.
+2. Use the board and presentation views to check layout, slide order, and builds.
+3. Save the editable deck and use export controls for PDF, images, or video. Export availability depends on the host environment.
+
+Read the [app guide](docs/app-guide.md) for usage and development requirements. This app runs within [puredesktop](https://puredesktop.ai).
 
 ## Open source and contributions
 
@@ -15,26 +27,15 @@ Copyright (c) 2026 pure.science inc. Third-party code, dependencies, and assets 
 
 ### Major open-source projects
 
-- [pptxgenjs](https://github.com/gitbrent/PptxGenJS).
-- [mp4-muxer](https://github.com/Vanilagy/mp4-muxer).
-- [react](https://github.com/react/react).
-- [react-dom](https://github.com/react/react).
-- [styled-components](https://github.com/styled-components/styled-components).
+| Project / source | Homepage or documentation | Support the maintainers |
+| --- | --- | --- |
+| [gitbrent/PptxGenJS](https://github.com/gitbrent/PptxGenJS) | [Homepage / docs](https://gitbrent.github.io/PptxGenJS/) | — |
+| [Vanilagy/mp4-muxer](https://github.com/Vanilagy/mp4-muxer) | [Successor: Mediabunny](https://mediabunny.dev/) | [Ko-fi](https://ko-fi.com/vanilagy) |
+| [react/react](https://github.com/react/react) | [Homepage / docs](https://react.dev) | — |
+| [styled-components/styled-components](https://github.com/styled-components/styled-components) | [Homepage / docs](https://styled-components.com) | [GitHub Sponsors](https://github.com/sponsors/quantizor) · [Open Collective](https://opencollective.com/styled-components) |
 
 Thank you to these projects and their contributors. Additional direct dependencies,
 upstream links, and asset notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-### Snapshot and development context
-
-Based on a cleaned snapshot from [Nikau-Dev/pureslides4](https://github.com/Nikau-Dev/pureslides4) at
-commit `2503482e46bd113bd2fc881e02f84e4581d60dec` (main branch snapshot, 2026-09-25).
-This repository begins with one clean initial commit; previous Git history was not copied.
-Bundled demo datasets, saved development records, and identifying personal examples were removed or anonymized.
-
-This is a PureDesktop app source repository. Local `@purescience/platform-*`
-dependencies refer to shared packages in the parent suite and are not included here.
-Use the matching PureDesktop development environment and the app's existing scripts;
-this snapshot alone is not a complete standalone desktop application.
 
 
 A slide deck is an HTML document you can present.
